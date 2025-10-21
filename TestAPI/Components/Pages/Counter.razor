@@ -1,0 +1,180 @@
+﻿@page "/counter"
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@inject TestAPI.Data.UserService UserService
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<h3 class="text-center mb-3">User List</h3>
+
+<!-- Loader -->
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center align-items-center" style="height:200px;">
+        <div class="spinner-border text-primary" role="status" style="width:3rem; height:3rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else
+{
+    <!-- User Table -->
+    <div style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-striped table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>City</th>
+                    <th>Created Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (users == null || !users.Any())
+                {
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">No data available.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var t in PagedUsers)
+                    {
+                        <tr>
+                            <td>@t.FullName</td>
+                            <td>@t.Email</td>
+                            <td>@t.City</td>
+                            <td>@t.CreatedAt</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    @if (users != null && users.Any())
+    {
+        <nav>
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                    <button type="button" class="page-link" @onclick="GoToPreviousPage">Previous</button>
+                </li>
+
+                @foreach (var page in GetSmartPageNumbers())
+                {
+                    if (page is string)
+                    {
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    }
+                    else
+                    {
+                        int p = (int)page;
+                        <li class="page-item @(currentPage == p ? "active" : "")">
+                            <button type="button" class="page-link" @onclick="@(() => GoToPage(p))">@p</button>
+                        </li>
+                    }
+                }
+
+                <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                    <button type="button" class="page-link" @onclick="GoToNextPage">Next</button>
+                </li>
+            </ul>
+        </nav>
+    }
+}
+
+@code {
+    private List<TestAPI.Models.Users>? users;
+    private bool isLoading = true;
+
+    private int currentPage = 1;
+    private int pageSize = 2000;
+    private int totalPages => (int)Math.Ceiling((double)(users?.Count ?? 0) / pageSize);
+
+    private IEnumerable<TestAPI.Models.Users> PagedUsers =>
+        users?.Skip((currentPage - 1) * pageSize).Take(pageSize) ?? Enumerable.Empty<TestAPI.Models.Users>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            users = await UserService.GetAllUsersAsync();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+
+        StateHasChanged();
+    }
+
+    private void GoToPreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            StateHasChanged();
+        }
+    }
+
+    private void GoToNextPage()
+    {
+        if (currentPage < totalPages)
+        {
+            currentPage++;
+            StateHasChanged();
+        }
+    }
+
+    private void GoToPage(int page)
+    {
+        currentPage = page;
+        StateHasChanged();
+    }
+
+    // 🔥 Smart Pagination Logic
+    private List<object> GetSmartPageNumbers()
+    {
+        var pages = new List<object>();
+
+        if (totalPages <= 8)
+        {
+            for (int i = 1; i <= totalPages; i++)
+                pages.Add(i);
+            return pages;
+        }
+
+        // Always show first 2 pages
+        pages.Add(1);
+        pages.Add(2);
+
+        // Add left dots if currentPage > 5
+        if (currentPage > 5)
+            pages.Add("...");
+
+        // Middle range logic
+        int start = Math.Max(3, currentPage - 1);
+        int end = Math.Min(totalPages - 2, currentPage + 1);
+
+        for (int i = start; i <= end; i++)
+        {
+            pages.Add(i);
+        }
+
+        // Add right dots if currentPage < totalPages - 4
+        if (currentPage < totalPages - 4)
+            pages.Add("...");
+
+        // Always show last 2 pages
+        pages.Add(totalPages - 1);
+        pages.Add(totalPages);
+
+        // Remove duplicates and sort
+        pages = pages.Distinct().OrderBy(p => p is int i ? i : int.MaxValue).ToList();
+        return pages;
+    }
+}
