@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TestAPI.Components;
 using TestAPI.Data;
+using TestAPI.Repositories;
 using Microsoft.AspNetCore.ResponseCompression;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,6 +10,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddControllers();
+
+
 
 builder.Services.AddResponseCompression(options =>
 {
@@ -32,6 +35,15 @@ builder.Services.AddDbContext<ApplicationDbContext>(optionsAction =>
     optionsAction.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 
+builder.Services.AddScoped(sp => new HttpClient
+{
+    BaseAddress = new Uri("https://localhost:7016/")
+});
+
+
+
+
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<UserService>();
 
 var app = builder.Build();
@@ -46,7 +58,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-//app.UseResponseCompression();
+app.UseResponseCompression();
 app.MapControllers();
 
 app.UseAntiforgery();

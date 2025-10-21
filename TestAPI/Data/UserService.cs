@@ -1,33 +1,26 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using TestAPI.Models;
+using TestAPI.Repositories;
 
 namespace TestAPI.Data
 {
     public class UserService
     {
-        private readonly ApplicationDbContext _context;
-        public UserService(ApplicationDbContext context)
+        private readonly IUserRepository _userRepository;
+        public UserService(IUserRepository userRepository)
         {
-            _context = context;
+            _userRepository = userRepository;
         }
 
-        public async Task<List<Users>> GetUsersPageAsync(int pageNumber, int pageSize)
+        public async Task<PagedResult<Users>> GetUsersPageAsync(int pageNumber, int pageSize)
         {
-            // Skip (pageNumber - 1) * pageSize rows and take pageSize rows
-            return await _context.Users
-                .OrderBy(u => u.FullName) // order is important for consistent paging
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
+            return await _userRepository.GetUsersPageAsync(pageNumber,  pageSize);
         }
-        public async Task<List<Users>> GetAllUsersAsync()
+        
+        public async Task<int> GetUsersCountAsync()
         {
-            return await _context.Users.ToListAsync();
+            return await _userRepository.GetUsersCountAsync();
         }
 
-        public async Task<int> GetTotalUserCountAsync()
-        {
-            return await _context.Users.CountAsync();
-        }
     }
 }
